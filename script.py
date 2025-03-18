@@ -297,12 +297,22 @@ plt.show()
 
 # Define a function which loads the model and returns a list of the outputs for the middle layers
 def get_layer_outputs(vgg, layer_names):
-
-    """ Creates a vgg model that returns a list of intermediate output values."""
+    """ 
+    Creates a VGG model that returns a list of intermediate output values
     
-    outputs = [vgg.get_layer(layer[0]).output for layer in layer_names]
+    Inputs:
+    vgg -- VGG model
+    layer_names -- name of the layers
 
+    Returns:
+    model -- Keras model
+    """
+    # Create the output of the model
+    outputs = [vgg.get_layer(layer[0]).output for layer in layer_names]
+    
+    # Create the model
     model = tf.keras.Model([vgg.input], outputs)
+
     return model
 
 # Define the content layer and build the model
