@@ -2,7 +2,7 @@
 #####                                                                                          #####
 #####                        DEEP LEARNING & ART: NEURAL STYLE TRANSFER                        #####
 #####                                  Created on: 2025-02-20                                  #####
-#####                                  Updated on: 2025-02-25                                  #####
+#####                                  Updated on: 2025-03-18                                  #####
 #####                                                                                          #####
 ####################################################################################################
 
@@ -28,30 +28,29 @@ import pprint
 import os
 os.chdir('C:/Users/Admin/Documents/Python Projects/neural_transfer')
 
+# Set up the seed to have reproducible results
+tf.random.set_seed(272)
+
 
 ####################################################################################################
 #####                                     TRANSFER LEARNING                                    #####
 ####################################################################################################
 
-# Set up the seed to have reproducible results
-tf.random.set_seed(272)
-
 # Size of the image
 img_size = 400
 
-# Load the VGG19 model using the weights from the model pre-trained on ImageNet, using the following parameters:
-# include_top: to include (or not) the 3 fully-connected layers at the top of the network (last layers)
-# here we don't do classification problem so we don't need the last layers, we just need the layers which extract information/features
-# input_shape: to be specified since include_top is False (the 3 comes from RGB colors)
-vgg = tf.keras.applications.VGG19(include_top=False,
-                                  input_shape=(img_size, img_size, 3),
-                                  weights='imagenet')
+# Load the VGG19 model using the weights from the model pre-trained on ImageNet
+vgg = tf.keras.applications.VGG19(
+    # Whether to include the 3 FC layers at the top/last of the network (here we don't do classification so we don't need the last layers, we just need the layers which extract information/features)
+    include_top = False,
+    # To be specified since include_top is False (the 3 comes from RGB colors)
+    input_shape = (img_size, img_size, 3),
+    weights='imagenet')
 
-# To do transfer learning we set up the trainable to False (freezing the weights of the VGG model)
+# Freeze the weights of the VGG model (to do transfer learning)
 vgg.trainable = False
 
-# Print the structure or details of the VGG model, it makes it easier to understand and inspect the model
-# We get the model's architecture (including the layer names, types, parameters, outputs, etc.) in a table format
+# Get the model's architecture (including the layer names, types, parameters, outputs, etc.) in a table format
 vgg.summary()
 
 
@@ -62,15 +61,16 @@ vgg.summary()
 # Create the function to compute the content cost
 def compute_content_cost(content_output, generated_output):
     """
-    Computes the content cost
+    Compute the content cost
     
-    Arguments:
-    a_C -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing content of the image C 
-    a_G -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing content of the image G
+    Inputs:
+    content_output -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing content of the image C 
+    generated_output -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing content of the image G
     
     Returns: 
     J_content -- content cost (scalar)
     """
+    # Get the last element from both inputs
     a_C = content_output[-1]
     a_G = generated_output[-1]
         
@@ -81,27 +81,28 @@ def compute_content_cost(content_output, generated_output):
     a_C_unrolled = tf.reshape(a_C, shape=[1, n_H * n_W, n_C]) 
     a_G_unrolled = tf.reshape(a_G, shape=[1, n_H * n_W, n_C]) 
     
-    # Compute the cost 
+    # Compute the cost (kind of MSE between a_C_unrolled and a_G_unrolled normalized by the dimensions of the tensor to ensure the error is scaled correctly)
     J_content = (1/(4*n_H*n_W*n_C))*tf.reduce_sum(tf.square(tf.subtract(a_C_unrolled,a_G_unrolled)))
 
     return J_content
 
 
 ####################################################################################################
-#####                          GRAM MATRIX (ALSO CALLED STYLE AMTRIX)                          #####
+#####                          GRAM MATRIX (ALSO CALLED STYLE MATRIX)                          #####
 ####################################################################################################
 
 # Create a function to compute the Gram matrix
 def gram_matrix(A):
     """
-    Argument:
+    Compute the Gram matrix
+
+    Inputs:
     A -- matrix of shape (n_C, n_H*n_W)
     
     Returns:
     GA -- Gram matrix of A, of shape (n_C, n_C)
     """
-
-    # Formula of  G_A = AA^T
+    # Formula of GA = AA^T
     GA = tf.linalg.matmul(A,tf.transpose(A))
 
     return GA
@@ -111,18 +112,17 @@ def gram_matrix(A):
 #####                                        STYLE COST                                        #####
 ####################################################################################################
 
-# We want to minimize the distance between the Gram matrix of the "style" image S and 
-# the Gram matrix of the "generated" image G
-
 # Create the function to compute the style cost for a single layer
 def compute_layer_style_cost(a_S, a_G):
     """
-    Arguments:
+    Create the style cost for a single layer
+
+    Inputs:
     a_S -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing style of the image S 
     a_G -- tensor of dimension (1, n_H, n_W, n_C), hidden layer activations representing style of the image G
     
     Returns: 
-    J_style_layer -- tensor representing a scalar value, style cost defined above by equation (2)
+    J_style_layer -- tensor representing a scalar value, style cost
     """
     # Retrieve dimensions from the hidden layer a_G
     _, n_H, n_W, n_C = a_G.get_shape().as_list()
