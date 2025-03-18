@@ -14,7 +14,7 @@
 globals().clear()
 
 # Load the libraries
-# import sys
+import sys
 import scipy.io
 import scipy.misc
 import matplotlib.pyplot as plt
